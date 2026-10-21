@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría de Tableros Eléctricos e Informes Técnicos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .card-print { border: 1px solid #ccc !important; background: white !important; color: black !important; box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <!-- Header -->
+        <header class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-emerald-400 flex items-center gap-3">
+                    <i class="fa-solid fa-bolt-lightning"></i> Auditoría de Tableros y Calidad de Energía
+                </h1>
+                <p class="text-slate-400 text-sm mt-1">Cálculo de parámetros trifásicos, diagnóstico y generación de informes.</p>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <button onclick="exportarCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-emerald-900/20">
+                    <i class="fa-solid fa-file-excel"></i> Exportar CSV
+                </button>
+                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+                    <i class="fa-solid fa-print"></i> Imprimir Vista
+                </button>
+                <button onclick="limpiarDatos()" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> Limpiar
+                </button>
+            </div>
+        </header>
+
+        <!-- Formulario e Indicadores -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8 no-print">
+            <section class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-6 shadow-xl lg:col-span-1 space-y-4">
+                <h2 class="text-lg font-semibold text-slate-200 pb-2 border-b border-slate-700 flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-list text-emerald-400"></i> Nueva Medición
+                </h2>
+                
+                <form id="medicionForm" onsubmit="guardarMedicion(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Lugar del Tablero</label>
+                        <input type="text" id="lugar" required placeholder="Ej. Subsuelo - Bloque F" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Clase</label>
+                            <select id="clase" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-sm focus:outline-none focus:border-emerald-500 transition">
+                                <option value="T.G.">T.G. (General)</option>
+                                <option value="T.P.">T.P. (Principal)</option>
+                                <option value="T.S.">T.S. (Seccional)</option>
+                                <option value="T.Ss.">T.Ss. (Subseccional)</option>
+                                <option value="T.C.">T.C. (Control)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Fecha y Hora</label>
+                            <input type="datetime-local" id="fechaHora" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2 text-sm focus:outline-none focus:border-emerald-500 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Dispositivo de Cabecera</label>
+                        <input type="text" id="cabecera" required placeholder="Ej. Tetrapolar 160A (8 Módulos)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+
+                    <!-- Tensión -->
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 block"><i class="fa-solid fa-wave-square"></i> Tensión (V)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="number" step="0.1" id="vMin" oninput="calcularEnTiempoReal()" required placeholder="Mín" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                            <input type="number" step="0.1" id="vMax" oninput="calcularEnTiempoReal()" required placeholder="Máx" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                            <input type="number" step="0.1" id="vAvg" oninput="calcularEnTiempoReal()" required placeholder="Prom" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center font-bold text-emerald-400">
+                        </div>
+                    </div>
+
+                    <!-- Amperaje -->
+                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 space-y-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 block"><i class="fa-solid fa-gauge-high"></i> Amperaje (A)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="number" step="0.1" id="aMin" oninput="calcularEnTiempoReal()" required placeholder="Mín" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                            <input type="number" step="0.1" id="aMax" oninput="calcularEnTiempoReal()" required placeholder="Máx" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                            <input type="number" step="0.1" id="aAvg" oninput="calcularEnTiempoReal()" required placeholder="Prom" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center font-bold text-cyan-400">
+                        </div>
+                    </div>
+
+                    <!-- Coseno y Armónicos -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 mb-1">Cos φ</label>
+                            <input type="number" step="0.01" max="1" min="0" id="coseno" oninput="calcularEnTiempoReal()" required placeholder="0.95" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 mb-1">THDi (%)</label>
+                            <input type="number" step="0.1" id="thdi" required placeholder="4.2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] uppercase text-slate-400 mb-1">THDv (%)</label>
+                            <input type="number" step="0.1" id="thdv" required placeholder="1.8" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-center">
+                        </div>
+                    </div>
+
+                    <!-- Cuadro de Cálculo Estimado en Tiempo Real -->
+                    <div class="bg-emerald-950/40 border border-emerald-500/30 p-3 rounded-xl space-y-1 text-xs">
+                        <div class="flex justify-between"><span class="text-slate-400">Potencia Activa (P):</span> <span id="calcP" class="font-bold text-emerald-400">0.0 kW</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Potencia Aparente (S):</span> <span id="calcS" class="font-bold text-cyan-400">0.0 kVA</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Estado Cos φ:</span> <span id="calcEstadoCos" class="font-bold text-slate-300">-</span></div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-emerald-600/20">
+                        Registrar Medición
+                    </button>
+                </form>
+            </section>
+
+            <!-- Historial de Registros -->
+            <section class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-6 shadow-xl lg:col-span-2 flex flex-col">
+                <h2 class="text-lg font-semibold text-slate-200 mb-4 pb-2 border-b border-slate-700 flex items-center justify-between">
+                    <span class="flex items-center gap-2"><i class="fa-solid fa-table text-emerald-400"></i> Historial de Registros</span>
+                    <span id="contadorRegistros" class="text-xs bg-slate-700 text-slate-300 px-2.5 py-1 rounded-full">0 registros</span>
+                </h2>
+                
+                <div class="overflow-x-auto flex-1">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900 text-slate-400 uppercase border-b border-slate-700">
+                            <tr>
+                                <th class="p-3">Fecha</th>
+                                <th class="p-3">Ubicación / Clase</th>
+                                <th class="p-3">Cabecera</th>
+                                <th class="p-3">V Prom / A Prom</th>
+                                <th class="p-3">Potencia (P)</th>
+                                <th class="p-3">Cos φ</th>
+                                <th class="p-3">Informe</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaCuerpo" class="divide-y divide-slate-700/50">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Vista del Informe Técnico (Imprimible) -->
+        <section id="vistaInforme" class="hidden bg-slate-800 border border-slate-700 rounded-2xl p-8 card-print space-y-6">
+            <div class="flex justify-between items-start border-b border-slate-600 pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-emerald-400">INFORME TÉCNICO DE AUDITORÍA ELÉCTRICA</h2>
+                    <p class="text-sm text-slate-400">Mantenimiento e Infraestructura - Hospital Luis C. Lagomaggiore</p>
+                </div>
+                <button onclick="cerrarInforme()" class="no-print bg-slate-700 text-slate-300 hover:bg-slate-600 px-3 py-1 rounded-lg text-xs">Cerrar Informe</button>
+            </div>
+
+            <div id="contenidoInforme" class="space-y-4">
+                <!-- Se genera dinámicamente -->
+            </div>
+
+            <div class="pt-8 border-t border-slate-700 grid grid-cols-2 gap-8 text-center text-xs text-slate-400 print-only">
+                <div class="border-t border-slate-500 pt-2">Firma y Aclaración Técnico Auditor</div>
+                <div class="border-t border-slate-500 pt-2">Supervisión de Mantenimiento Eléctrico</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxyY08skzAVOmtw6-1jE9q5VwvX8MF50B7rU_e5bJ6Y_Iikgj9yPX6i31C07aRPg-zt/exec';
+
+        document.getElementById('fechaHora').value = new Date().toISOString().slice(0, 16);
+        let registros = JSON.parse(localStorage.getItem('tableros_mediciones')) || [];
+        renderizarTabla();
+
+        function calcularEnTiempoReal() {
+            const vAvg = parseFloat(document.getElementById('vAvg').value) || 0;
+            const aAvg = parseFloat(document.getElementById('aAvg').value) || 0;
+            const cos = parseFloat(document.getElementById('coseno').value) || 0;
+
+            // Cálculo trifásico P = sqrt(3) * V * I * cos(phi) / 1000
+            const p = (Math.sqrt(3) * vAvg * aAvg * cos) / 1000;
+            const s = (Math.sqrt(3) * vAvg * aAvg) / 1000;
+
+            document.getElementById('calcP').innerText = `${p.toFixed(2)} kW`;
+            document.getElementById('calcS').innerText = `${s.toFixed(2)} kVA`;
+            
+            const estadoCos = document.getElementById('calcEstadoCos');
+            if (cos === 0) {
+                estadoCos.innerText = "-";
+                estadoCos.className = "font-bold text-slate-300";
+            } else if (cos < 0.95) {
+                estadoCos.innerText = "Bajo Factor de Potencia (< 0.95)";
+                estadoCos.className = "font-bold text-rose-400";
+            } else {
+                estadoCos.innerText = "Óptimo (≥ 0.95)";
+                estadoCos.className = "font-bold text-emerald-400";
+            }
+        }
+
+        async function guardarMedicion(e) {
+            e.preventDefault();
+            
+            const vAvg = parseFloat(document.getElementById('vAvg').value);
+            const aAvg = parseFloat(document.getElementById('aAvg').value);
+            const coseno = parseFloat(document.getElementById('coseno').value);
+            
+            const p = ((Math.sqrt(3) * vAvg * aAvg * coseno) / 1000).toFixed(2);
+            const s = ((Math.sqrt(3) * vAvg * aAvg) / 1000).toFixed(2);
+
+            const nuevaMedicion = {
+                id: Date.now(),
+                fechaHora: document.getElementById('fechaHora').value,
+                lugar: document.getElementById('lugar').value,
+                clase: document.getElementById('clase').value,
+                cabecera: document.getElementById('cabecera').value,
+                vMin: parseFloat(document.getElementById('vMin').value),
+                vMax: parseFloat(document.getElementById('vMax').value),
+                vAvg: vAvg,
+                aMin: parseFloat(document.getElementById('aMin').value),
+                aMax: parseFloat(document.getElementById('aMax').value),
+                aAvg: aAvg,
+                coseno: coseno,
+                thdi: parseFloat(document.getElementById('thdi').value),
+                thdv: parseFloat(document.getElementById('thdv').value),
+                potenciakW: p,
+                potenciakVA: s
+            };
+
+            if (SCRIPT_URL && !SCRIPT_URL.includes('TU_SCRIPT_ID_AQUI')) {
+                try {
+                    await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(nuevaMedicion)
+                    });
+                } catch (error) {
+                    console.error('Error al enviar:', error);
+                }
+            }
+
+            registros.unshift(nuevaMedicion);
+            localStorage.setItem('tableros_mediciones', JSON.stringify(registros));
+            
+            renderizarTabla();
+            document.getElementById('medicionForm').reset();
+            document.getElementById('fechaHora').value = new Date().toISOString().slice(0, 16);
+            calcularEnTiempoReal();
+        }
+
+        function renderizarTabla() {
+            const tbody = document.getElementById('tablaCuerpo');
+            document.getElementById('contadorRegistros').textContent = `${registros.length} registros`;
+            
+            if (registros.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500 italic">No hay registros cargados.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = registros.map(r => `
+                <tr class="hover:bg-slate-700/30 transition">
+                    <td class="p-3 text-slate-400">${r.fechaHora.replace('T', ' ')}</td>
+                    <td class="p-3 font-semibold text-white">${r.lugar} <span class="text-[10px] text-emerald-400 uppercase font-mono">(${r.clase})</span></td>
+                    <td class="p-3 text-slate-300">${r.cabecera}</td>
+                    <td class="p-3 font-mono">${r.vAvg} V / ${r.aAvg} A</td>
+                    <td class="p-3 font-mono text-emerald-400 font-bold">${r.potenciakW} kW</td>
+                    <td class="p-3 font-mono ${r.coseno < 0.95 ? 'text-rose-400 font-bold' : ''}">${r.coseno}</td>
+                    <td class="p-3">
+                        <button onclick="verInforme(${r.id})" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded text-[11px] flex items-center gap-1">
+                            <i class="fa-solid fa-file-contract"></i> Ver
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function verInforme(id) {
+            const r = registros.find(item => item.id === id);
+            if (!r) return;
+
+            const estadoCos = r.coseno < 0.95 ? '<span class="text-rose-400 font-bold">FUERA DE NORMA (< 0.95)</span>' : '<span class="text-emerald-400 font-bold">NORMAL (≥ 0.95)</span>';
+            const estadoTHD = r.thdi > 10 ? '<span class="text-amber-400 font-bold">ELEVADO (> 10%)</span>' : '<span class="text-emerald-400 font-bold">ACEPTABLE</span>';
+
+            document.getElementById('contenidoInforme').innerHTML = `
+                <div class="grid grid-cols-2 gap-4 text-sm bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                    <div><strong>Ubicación:</strong> ${r.lugar}</div>
+                    <div><strong>Clase:</strong> ${r.clase}</div>
+                    <div><strong>Fecha/Hora:</strong> ${r.fechaHora.replace('T', ' ')}</div>
+                    <div><strong>Cabecera:</strong> ${r.cabecera}</div>
+                </div>
+
+                <h3 class="font-bold text-slate-300 border-b border-slate-700 pb-1">1. Parámetros de Medición</h3>
+                <div class="grid grid-cols-3 gap-4 text-sm text-center">
+                    <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-700">
+                        <span class="text-xs text-slate-400 block">Tensión Promedio</span>
+                        <span class="text-lg font-bold text-emerald-400">${r.vAvg} V</span>
+                        <span class="text-[10px] text-slate-500 block">Rango: ${r.vMin}V - ${r.vMax}V</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-700">
+                        <span class="text-xs text-slate-400 block">Corriente Promedio</span>
+                        <span class="text-lg font-bold text-cyan-400">${r.aAvg} A</span>
+                        <span class="text-[10px] text-slate-500 block">Rango: ${r.aMin}A - ${r.aMax}A</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-700">
+                        <span class="text-xs text-slate-400 block">Potencia Calculada</span>
+                        <span class="text-lg font-bold text-white">${r.potenciakW} kW</span>
+                        <span class="text-[10px] text-slate-500 block">Aparente: ${r.potenciakVA} kVA</span>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-slate-300 border-b border-slate-700 pb-1">2. Diagnóstico de Calidad de Energía</h3>
+                <ul class="list-disc list-inside space-y-1 text-sm text-slate-300">
+                    <li>Factor de Potencia (Cos φ): <strong>${r.coseno}</strong> — Diagnóstico: ${estadoCos}</li>
+                    <li>Distorsión Armónica de Corriente (THDi): <strong>${r.thdi}%</strong> — Diagnóstico: ${estadoTHD}</li>
+                    <li>Distorsión Armónica de Tensión (THDv): <strong>${r.thdv}%</strong></li>
+                </ul>
+            `;
+
+            document.getElementById('vistaInforme').classList.remove('hidden');
+            window.scrollTo({ top: document.getElementById('vistaInforme').offsetTop - 20, behavior: 'smooth' });
+        }
+
+        function cerrarInforme() {
+            document.getElementById('vistaInforme').classList.add('hidden');
+        }
+
+        function limpiarDatos() {
+            if(confirm('¿Eliminar el historial local?')) {
+                registros = [];
+                localStorage.removeItem('tableros_mediciones');
+                renderizarTabla();
+                cerrarInforme();
+            }
+        }
+
+        function exportarCSV() {
+            if (registros.length === 0) return alert('No hay datos.');
+            let csv = "data:text/csv;charset=utf-8,FechaHora,Lugar,Clase,Cabecera,V_Avg,A_Avg,P_kW,Coseno,THDi,THDv\r\n";
+            registros.forEach(r => csv += `"${r.fechaHora}","${r.lugar}","${r.clase}","${r.cabecera}",${r.vAvg},${r.aAvg},${r.potenciakW},${r.coseno},${r.thdi},${r.thdv}\r\n`);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csv));
+            link.setAttribute("download", "auditoria_tableros.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
